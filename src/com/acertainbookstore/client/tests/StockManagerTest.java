@@ -158,6 +158,22 @@ public class StockManagerTest {
 				&& booksInStorePreTest.size() == booksInStorePostTest.size());
 	}
 
+	//New added test
+	@Test
+	public void testGetBooksByISBNEdgeCase() throws BookStoreException {
+		Set<Integer> isbnSet = new HashSet<>();
+		isbnSet.add(TEST_ISBN); // Valid
+		isbnSet.add(-1);        // Invalid
+
+		try {
+			storeManager.getBooksByISBN(isbnSet);
+			fail();
+		} catch (BookStoreException e) {
+			;
+		}
+	}
+
+
 	/**
 	 * Checks whether the insertion of a book with a negative number of copies
 	 * is rejected.
@@ -358,6 +374,31 @@ public class StockManagerTest {
 		storeManager.updateEditorPicks(editorPicksVals);
 	}
 
+	//New added tests
+	@Test
+	public void testUpdateEditorPicksEdgeCase() throws BookStoreException {
+		addEditorPick(TEST_ISBN, true); // Add editor pick
+		List<Book> editorPicks = client.getEditorPicks(1);
+		assertEquals(1, editorPicks.size());
+
+		addEditorPick(TEST_ISBN, false); // Remove editor pick
+		editorPicks = client.getEditorPicks(1);
+		assertTrue(editorPicks.isEmpty());
+	}
+
+	@Test
+	public void testUpdateEditorPicksInvalidISBN() throws BookStoreException {
+		try {
+			Set<BookEditorPick> picks = new HashSet<>();
+			picks.add(new BookEditorPick(-1, true)); // Invalid ISBN
+			storeManager.updateEditorPicks(picks);
+			fail();
+		} catch (BookStoreException e) {
+			;
+		}
+	}
+
+
 	/**
 	 * Tests the basic editor pick functionality.
 	 *
@@ -428,6 +469,22 @@ public class StockManagerTest {
 		assertTrue(booksInStoreList.containsAll(booksAdded) && booksInStoreList.size() == booksAdded.size());
 	}
 
+	//New test added
+	@Test
+	public void testRemoveBooksEdgeCase() throws BookStoreException {
+		storeManager.removeAllBooks();
+		Set<Integer> isbnSet = new HashSet<>();
+		isbnSet.add(TEST_ISBN);
+
+		try {
+			storeManager.removeBooks(isbnSet);
+			fail();
+		} catch (BookStoreException e) {
+			// Expected exception
+		}
+	}
+
+
 	/**
 	 * Tests basic getBooksByISBN for the default book.
 	 *
@@ -450,6 +507,15 @@ public class StockManagerTest {
 		List<StockBook> listBooks = storeManager.getBooksByISBN(isbnSet);
 		assertTrue(booksToAdd.containsAll(listBooks) && booksToAdd.size() == listBooks.size());
 	}
+
+	//New test case
+	@Test
+	public void testGetBooksEdgeCase() throws BookStoreException {
+		storeManager.removeAllBooks();
+		List<StockBook> books = storeManager.getBooks();
+		assertTrue(books.isEmpty());
+	}
+
 
 	/**
 	 * Tests basic removeAllBooks functionality.
@@ -474,6 +540,97 @@ public class StockManagerTest {
 		booksInStoreList = storeManager.getBooks();
 		assertTrue(booksInStoreList.size() == 0);
 	}
+
+	/**
+	 * This test cases prove the functionality of getBooksInDemand
+	 */
+	@Test
+	public void testGetBooksInDemandEdgeCase() throws BookStoreException {
+		try {
+			List<StockBook> inDemandBooks = storeManager.getBooksInDemand();
+			fail();
+		} catch (BookStoreException ex) {
+			;
+		}
+	}
+
+	@Test
+	public void testGetBooksInDemandBasicFunctionality() throws BookStoreException {
+
+		Set<BookCopy> booksToBuy = new HashSet<>();
+		booksToBuy.add(new BookCopy(TEST_ISBN, NUM_COPIES + 1));
+		try {
+			client.buyBooks(booksToBuy);
+		} catch (BookStoreException e) {
+			;
+		}
+
+		List<StockBook> inDemandBooks = storeManager.getBooksInDemand();
+		assertEquals(1, inDemandBooks.size());
+		assertEquals((int) TEST_ISBN, inDemandBooks.get(0).getISBN());
+	}
+
+	@Test
+	public void testGetBooksInDemandErrorCase() throws BookStoreException {
+
+
+		try {
+			storeManager.removeAllBooks();
+
+			List<StockBook> inDemandBooks = storeManager.getBooksInDemand();
+			assertTrue(inDemandBooks.isEmpty());
+			fail();
+		} catch (BookStoreException ex) {
+			;
+		}
+	}
+
+
+
+	/**
+	 * This test cases prove the functionality of addBooks
+	 */
+	@Test
+	public void testAddBooksBasicFunctionality() throws BookStoreException {
+		Set<StockBook> booksToAdd = new HashSet<>();
+		booksToAdd.add(new ImmutableStockBook(TEST_ISBN + 1, "New Book", "Author", 20, 10, 0, 0, 0, false));
+		storeManager.addBooks(booksToAdd);
+
+		List<StockBook> booksInStore = storeManager.getBooks();
+		assertEquals(2, booksInStore.size()); // Default + newly added
+	}
+
+	@Test
+	public void testAddBooksEdgeCase() throws BookStoreException {
+		Set<StockBook> booksToAdd = new HashSet<>();
+		booksToAdd.add(new ImmutableStockBook(Integer.MAX_VALUE, "Edge Book", "Edge Author", 20, 10, 0, 0, 0, false));
+		storeManager.addBooks(booksToAdd);
+
+		List<StockBook> booksInStore = storeManager.getBooks();
+		assertTrue(booksInStore.stream().anyMatch(book -> book.getISBN() == Integer.MAX_VALUE));
+	}
+
+	@Test
+	public void testAddBooksDuplicateISBN() throws BookStoreException {
+		List<StockBook> booksInStorePreTest = storeManager.getBooks();
+		Set<StockBook> booksToAdd = new HashSet<>();
+		booksToAdd.add(new ImmutableStockBook(TEST_ISBN, "Duplicate Book", "Author", 20, 10, 0, 0, 0, false));
+
+		try {
+			storeManager.addBooks(booksToAdd);
+			fail(); // This should not be reached
+		} catch (BookStoreException e) {
+			;
+		}
+		List<StockBook> booksInStorePostTest = storeManager.getBooks();
+
+		// Check pre and post state are same.
+		assertTrue(booksInStorePreTest.containsAll(booksInStorePostTest)
+				&& booksInStorePreTest.size() == booksInStorePostTest.size());
+	}
+
+
+
 
 	/**
 	 * Tear down after class.

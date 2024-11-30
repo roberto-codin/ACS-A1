@@ -1,22 +1,19 @@
 package com.acertainbookstore.client.tests;
 
+
 import static org.junit.Assert.*;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.acertainbookstore.business.*;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.acertainbookstore.business.Book;
-import com.acertainbookstore.business.BookCopy;
-import com.acertainbookstore.business.CertainBookStore;
-import com.acertainbookstore.business.ImmutableStockBook;
-import com.acertainbookstore.business.StockBook;
 import com.acertainbookstore.client.BookStoreHTTPProxy;
 import com.acertainbookstore.client.StockManagerHTTPProxy;
 import com.acertainbookstore.interfaces.BookStore;
@@ -86,6 +83,7 @@ public class BookStoreTest {
 				0, false);
 		booksToAdd.add(book);
 		storeManager.addBooks(booksToAdd);
+
 	}
 
 	/**
@@ -348,6 +346,114 @@ public class BookStoreTest {
 		assertTrue(booksInStorePreTest.containsAll(booksInStorePostTest)
 				&& booksInStorePreTest.size() == booksInStorePostTest.size());
 	}
+
+	/**
+	 * This test cases prove the functionality of getEditorPicks
+	 */
+	@Test
+	public void testGetEditorPicksBasicFunctionality() throws BookStoreException {
+		//Add Editor book
+		Set<BookEditorPick> picks = new HashSet<>();
+		picks.add(new BookEditorPick(TEST_ISBN, true));
+		storeManager.updateEditorPicks(picks);
+
+		List<Book> editorPicks = client.getEditorPicks(1);
+		assertEquals(1, editorPicks.size());
+		assertEquals(TEST_ISBN, editorPicks.get(0).getISBN());
+	}
+	@Test
+	public void testGetEditorPicksEdgeCase() throws BookStoreException {
+		List<Book> editorPicks = client.getEditorPicks(1);
+		assertTrue(editorPicks.isEmpty());
+	}
+
+	@Test
+	public void testGetEditorPicksInvalidK() throws BookStoreException {
+		try {
+			client.getEditorPicks(-1);
+			fail();
+		} catch (BookStoreException e) {
+			// Expected exception
+		}
+	}
+
+
+	/**
+	 * This test cases prove the functionality of rateBooks
+	 */
+	@Test
+	public void testRateBooksBasicFunctionality() throws BookStoreException {
+		Set<BookRating> bookRatings = new HashSet<BookRating>();
+		bookRatings.add(new BookRating(TEST_ISBN, 4));
+		client.rateBooks(bookRatings);
+
+		List<StockBook> booksInStore = storeManager.getBooks();
+		StockBook ratedBook = booksInStore.get(0);
+		assertEquals(4, ratedBook.getAverageRating(), 0.01);
+		assertEquals(1, ratedBook.getNumTimesRated());
+	}
+
+	@Test
+	public void testRateBooksEdgeCase() throws BookStoreException {
+		Set<BookRating> bookRatings = new HashSet<BookRating>();
+		bookRatings.add(new BookRating(TEST_ISBN, 5)); // Rate the book 5/5
+		client.rateBooks(bookRatings);
+
+		List<StockBook> booksInStore = storeManager.getBooks();
+		StockBook ratedBook = booksInStore.get(0);
+		assertEquals(5, ratedBook.getAverageRating(), 0.01);
+		assertEquals(1, ratedBook.getNumTimesRated());
+	}
+
+	@Test
+	public void testRateBooksInvalidRating() throws BookStoreException {
+		Set<BookRating> bookRatings = new HashSet<BookRating>();
+		bookRatings.add(new BookRating(TEST_ISBN, -1));
+
+		try {
+			client.rateBooks(bookRatings);
+			fail();
+		} catch (BookStoreException e) {
+			;
+		}
+
+		List<StockBook> booksInStore = storeManager.getBooks();
+		StockBook book = booksInStore.get(0);
+		assertEquals(0, book.getNumTimesRated());
+		assertEquals(-1, book.getAverageRating(), 0.01);
+	}
+
+
+	/**
+	 * This test cases prove the functionality of getTopRatedBooks
+	 */
+	@Test
+	public void testGetTopRatedBooksBasicFunctionality() throws BookStoreException {
+		Set<BookRating> bookRatings = new HashSet<BookRating>();;
+		bookRatings.add(new BookRating(TEST_ISBN, 4));
+		client.rateBooks(bookRatings);
+
+		List<Book> topRatedBooks = client.getTopRatedBooks(1);
+		assertEquals(1, topRatedBooks.size());
+		assertEquals(TEST_ISBN, topRatedBooks.get(0).getISBN());
+	}
+
+	@Test
+	public void testGetTopRatedBooksEdgeCase() throws BookStoreException {
+		List<Book> topRatedBooks = client.getTopRatedBooks(5);
+		assertTrue(topRatedBooks.size() <= 5);
+	}
+
+	@Test
+	public void testGetTopRatedBooksInvalidK() throws BookStoreException {
+		try {
+			client.getTopRatedBooks(-1);
+			fail();
+		} catch (BookStoreException e) {
+			;
+		}
+	}
+
 
 	/**
 	 * Tear down after class.
