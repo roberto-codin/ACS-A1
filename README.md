@@ -30,4 +30,4 @@ running it as a "JUnit test".
 
 4. You can turn on/off the local/remote mode of running the test case i.e.,
 using the *HTTPProxy classes or not by configuring the localTest variable
-in each of the test classes. 
+in each of the test classes. # ACS-A1

@@ -361,8 +361,31 @@ public class CertainBookStore implements BookStore, StockManager {
 	 */
 
 	@Override
+	//by Karan
 	public synchronized List<StockBook> getBooksInDemand() throws BookStoreException {
-		throw new BookStoreException();
+		Collection<BookStoreBook> bookMapValues = bookMap.values();
+
+		// Store our books in a list to iterate through
+		List<StockBook> listOfBooks =
+				bookMapValues.stream().map(book -> book.immutableStockBook())
+						.collect(Collectors.toList());
+
+		// Initialize empty list for books to return
+		List<StockBook> returnBooks = new ArrayList<>();
+
+		// Iterate through all the books
+		for (StockBook currentBook : listOfBooks) {
+			// If the current book is in demand - add to the return list
+			if (currentBook.getNumSaleMisses() != 0)
+				returnBooks.add(currentBook);
+		}
+
+		// If there are no books in demand, return error rather than empty list
+		if (returnBooks.size() == 0) {
+			throw new BookStoreException("No books in demand!");
+		} else {
+			return returnBooks;
+		}
 	}
 
 	/*
